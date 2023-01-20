@@ -1,4 +1,5 @@
----
+Transform: AWS::Serverless-2016-10-31
+
 Description: "Sample GraphQlApi"
 
 Parameters:
@@ -30,6 +31,17 @@ Resources:
       ProvisionedThroughput:
         ReadCapacityUnits: 5
         WriteCapacityUnits: 5
+
+  HelloLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./lambdas/hello-world/
+      Handler: hello-world
+      Runtime: go1.x
+      Architectures:
+        - x86_64
+      MemorySize: 256
+      Timeout: 100
 
 # ================= Connectors between AppSync and Other Resources =================
   DynamoDBRole:
@@ -70,6 +82,28 @@ Resources:
               - dynamodb:BatchWriteItem
             Resource: !Join [ "", [ !GetAtt DynamoDBNotesTable.Arn, "*" ] ]
 
+  AppSyncApiLambdaInvocationRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: appsync.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: allow-access-to-lambda-from-appsync
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action: lambda:invokeFunction
+                Resource:
+                  - !GetAtt HelloLambda.Arn
+                  - !Join ["", [!GetAtt HelloLambda.Arn, ":*"]]
+
 # ================= AppSync Resources =================
   AppSyncApi:
     Type: "AWS::AppSync::GraphQLApi"
@@ -86,7 +120,7 @@ Resources:
     Type: "AWS::AppSync::GraphQLSchema"
     Properties:
       ApiId: !GetAtt AppSyncApi.ApiId
-      DefinitionS3Location: "s3://graph-ql-demo/schema-v1.graphql"
+      DefinitionS3Location: "s3://graph-ql-demo/schema-v1_1.graphql"
   
   AppSyncNotesTableDataSource:
     Type: "AWS::AppSync::DataSource"
@@ -99,6 +133,16 @@ Resources:
       DynamoDBConfig:
         TableName: !Ref DynamoDBNotesTable
         AwsRegion: !Sub ${AWS::Region}
+
+  AppSyncLambdaDataSource:
+    Type: "AWS::AppSync::DataSource"
+    Properties:
+      ApiId: !GetAtt AppSyncApi.ApiId
+      Name: "AppSyncLambdaDataSource"
+      Type: "AWS_LAMBDA"
+      ServiceRoleArn: !GetAtt AppSyncApiLambdaInvocationRole.Arn
+      LambdaConfig:
+        LambdaFunctionArn: !GetAtt HelloLambda.Arn
 
   AppSyncAllMyNotesQueryResolver:
     Type: "AWS::AppSync::Resolver"
@@ -160,37 +204,25 @@ Resources:
       ApiId: !GetAtt AppSyncApi.ApiId
       TypeName: Mutation
       FieldName: deleteNote
-      Kind: PIPELINE
-      PipelineConfig: 
-        Functions:
-          - !GetAtt DeleteNoteFunction.FunctionId
-          - !GetAtt NotifyOnDeleteFunction.FunctionId
-      CodeS3Location: "s3://graph-ql-demo/resolvers/deleteNote.js"
-      Runtime: 
-        Name: APPSYNC_JS
-        RuntimeVersion: "1.0.0"
-
-  DeleteNoteFunction:
-    Type: AWS::AppSync::FunctionConfiguration
-    Properties: 
-      ApiId: !GetAtt AppSyncApi.ApiId
-      CodeS3Location: "s3://graph-ql-demo/functions/deleteNote.js"
       DataSourceName: !GetAtt AppSyncNotesTableDataSource.Name
-      Name: DeleteNote
-      Runtime: 
-        Name: APPSYNC_JS
-        RuntimeVersion: "1.0.0"
+      RequestMappingTemplate: |
+        {
+          "version": "2017-02-28",
+          "operation": "DeleteItem",
+          "key": {
+            "NoteId": $util.dynamodb.toDynamoDBJson($ctx.args.NoteId),
+            "UserId": $util.dynamodb.toDynamoDBJson($ctx.identity.sub)
+          }
+        }
+      ResponseMappingTemplate: "$util.toJson($ctx.result)"
 
-  NotifyOnDeleteFunction:
-    Type: AWS::AppSync::FunctionConfiguration
-    Properties: 
+  SayHelloResolver:
+    Type: "AWS::AppSync::Resolver"
+    Properties:
       ApiId: !GetAtt AppSyncApi.ApiId
-      CodeS3Location: "s3://graph-ql-demo/functions/notifyOnDelete.js"
-      DataSourceName: !GetAtt AppSyncNotesTableDataSource.Name
-      Name: NotifyOnDelete
-      Runtime: 
-        Name: APPSYNC_JS
-        RuntimeVersion: "1.0.0"
+      TypeName: "Query"
+      FieldName: "sayHello"
+      DataSourceName: !GetAtt AppSyncLambdaDataSource.Name
 
 Outputs:
   DynamoDBNotesTableName:
