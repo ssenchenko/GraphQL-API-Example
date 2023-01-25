@@ -37,7 +37,7 @@ It's not enough to simply upload new schema definition. The schema resource shou
 3. if Code is used instead of templates but forgot `runtime` the error is not `You forgot runtime` but `Code not supported when using templates.`
 4. Doc doesn't say that `FunctionId` is required for `PipelineConfig`. Apparently ARN doesn't work
 5. If you make a typo in the Property name you receive error `The code contains one or more errors. (Service: AWSAppSync; Status Code: 400; Error Code: BadRequestException` instead of a wrong property name
-6. Can use Code on Unit Resolver ut cannot use Environment on it. Without Environment, impossible to create a JS resolver. So Unit resolvers support only VTL. But docs are not explicit about it. https://docs.aws.amazon.com/appsync/latest/APIReference/API_Resolver.html
+6. Can use Code on Unit Resolver but cannot use Environment on it. Without Environment, impossible to create a JS resolver. So Unit resolvers support only VTL. But docs are not explicit about it. https://docs.aws.amazon.com/appsync/latest/APIReference/API_Resolver.html
 7. API Keys should be referable through intrinsic functions to a lambda's env
 
 
