@@ -1,14 +1,5 @@
 Transform: AWS::Serverless-2016-10-31
 
-Parameters:
-  APIName:
-    Type: String
-    Description: "Name of the API, for generate names for resources"
-    MinLength: 3
-    MaxLength: 20
-    AllowedPattern: '^[a-zA-Z][a-zA-Z0-9_]*$'
-    Default: MyNotes
-
 Resources:
 # ============== Non AppSync resources ==============
   DynamoDBNotesTable:
@@ -34,67 +25,97 @@ Resources:
   SamGraphQl:
     Type: "AWS::Serverless::GraphQLApi"
     Properties:
-      Name: !Sub ${APIName}
+      Name: MyNotes
       SchemaUri: "s3://graph-ql-demo/schema-v1.graphql"
       MappingConfig:
-        Runtime: 
+        PathToCode: s3://graph-ql-demo/
+        Runtime:
           Name: APPSYNC_JS
           RuntimeVersion: "1.0.0"
       Auth:
         Type: AWS_IAM
-      DataSources:
-        - Name: !Sub ${APIName}_notes_table
-          Type: AMAZON_DYNAMODB
-          Description: "The Notes Table AppSync Data Source"
-          # maps to DynamoDbConfig + permissions to access
-          DynamoDBConfig: 
-            AwsRegion: !Sub ${AWS::Region}
-            TableName: !Ref DynamoDBNotesTable
-          Resolvers:
-            - TypeName: Query
-              FieldName: allMyNotes
-              MappingTemplate:
-                RequestUri: "s3://graph-ql-demo/resolvers/allMyNotes.request.vtl"
-                ResponseUri: "s3://graph-ql-demo/resolvers/allMyNotes.response.vtl"
-            - TypeName: Query
-              FieldName: getNote
-              MappingTemplate:
-                RequestInline: |
-                  {
-                    "version": "2017-02-28",
-                    "operation": "GetItem",
-                    "key": {
-                      "NoteId": $util.dynamodb.toDynamoDBJson($context.arguments.NoteId),
-                      "UserId": $util.dynamodb.toDynamoDBJson($context.identity.userArn)
-                    }
-                  }
-                ResponseInline: "$util.toJson($context.result)"
-            - TypeName: Mutation
-              FieldName: saveNote
-              MappingTemplate:
-                RequestInline: |
-                  {
-                    "version": "2017-02-28",
-                    "operation": "PutItem",
-                    "key": {
-                      "NoteId": $util.dynamodb.toDynamoDBJson($context.arguments.NoteId),
-                      "UserId": $util.dynamodb.toDynamoDBJson($context.identity.userArn)
-                    },
-                    "attributeValues": {
-                      "title": $util.dynamodb.toDynamoDBJson($context.arguments.title),
-                      "content": $util.dynamodb.toDynamoDBJson($context.arguments.content)
-                    }
-                  }
-                ResponseInline: "$util.toJson($context.result)"
-          Functions:
-            - Name: DeleteNote
-              CodeUri: "s3://graph-ql-demo/functions/deleteNote.js"
-            - Name: NotifyOnDelete
-              CodeUri: "s3://graph-ql-demo/functions/notifyOnDelete.js"
-      Resolvers:
-        - TypeName: Mutation
-          FieldName: deleteNote
-          Functions:
-            - DeleteNote
-            - NotifyOnDelete
-          CodeUri: "s3://graph-ql-demo/resolvers/deleteNote.js"
+
+  Notes:
+    Type: "AWS::Serverless::GqlDataSource"
+    Properties:
+      Api: SamGraphQl
+      Name: !Sub NotesDataSource
+      Type: AMAZON_DYNAMODB
+      # maps to DynamoDbConfig + permissions to access
+      DynamoDBConfig: 
+        AwsRegion: !Sub ${AWS::Region}
+        TableName: !Ref DynamoDBNotesTable
+
+  AllMyNotes:
+    Type:  "AWS::Serverless::GqlVtlResolver"
+    Properties:
+      Api: SamGraphQl
+      DataSource: Notes
+      TypeName: Query
+      FieldName: allMyNotes
+
+  GetNote:
+    Type: "AWS::Serverless::GqlVtlResolver"
+    Properties:
+      Api: SamGraphQl
+      DataSource: Notes
+      TypeName: Query
+      FieldName: getNote
+      MappingTemplate:
+        RequestInline: |
+          {
+            "version": "2017-02-28",
+            "operation": "GetItem",
+            "key": {
+              "NoteId": $util.dynamodb.toDynamoDBJson($context.arguments.NoteId),
+              "UserId": $util.dynamodb.toDynamoDBJson($context.identity.userArn)
+            }
+          }
+        ResponseInline: "$util.toJson($context.result)"
+
+  SaveNote:
+    Type: "AWS::Serverless::GqlVtlResolver"
+    Properties:
+      Api: SamGraphQl
+      DataSource: Notes
+      TypeName: Mutation
+      FieldName: saveNote
+      MappingTemplate:
+        RequestInline: |
+          {
+            "version": "2017-02-28",
+            "operation": "PutItem",
+            "key": {
+              "NoteId": $util.dynamodb.toDynamoDBJson($context.arguments.NoteId),
+              "UserId": $util.dynamodb.toDynamoDBJson($context.identity.userArn)
+            },
+            "attributeValues": {
+              "title": $util.dynamodb.toDynamoDBJson($context.arguments.title),
+              "content": $util.dynamodb.toDynamoDBJson($context.arguments.content)
+            }
+          }
+        ResponseInline: "$util.toJson($context.result)"
+
+  DeleteNoteFn:
+    Type: "AWS::Serverless::GqlFunction"
+    Properties:
+      Api: SamGraphQl
+      DataSource: Notes
+      Name: DeleteNote
+
+  NotifyOnDeleteFn:
+    Type: "AWS::Serverless::GqlFunction"
+    Properties:
+      Api: SamGraphQl
+      DataSource: Notes
+      Name: NotifyOnDelete
+
+  DeleteNote:
+    Type: "AWS::Serverless::GqlResolver"
+    Properties:
+      Api: SamGraphQl
+      TypeName: Mutation
+      FieldName: deleteNote
+      Functions:
+        - !GetAtt DeleteNoteFn.FunctionId
+        - !GetAtt NotifyOnDeleteFn.FunctionId
