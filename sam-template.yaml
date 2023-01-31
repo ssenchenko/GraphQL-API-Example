@@ -28,7 +28,7 @@ Resources:
       Name: MyNotes
       SchemaUri: "s3://graph-ql-demo/schema-v1.graphql"
       MappingConfig:
-        PathToCode: s3://graph-ql-demo/
+        PathToCode: "s3://graph-ql-demo/"
         Runtime:
           Name: APPSYNC_JS
           RuntimeVersion: "1.0.0"
