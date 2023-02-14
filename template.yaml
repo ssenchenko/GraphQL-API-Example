@@ -21,13 +21,9 @@ Resources:
       AttributeDefinitions:
         - AttributeName: "NoteId"
           AttributeType: "S"
-        - AttributeName: "UserId"
-          AttributeType: "S"
       KeySchema:
-        - AttributeName: "UserId"
-          KeyType: "HASH"
         - AttributeName: "NoteId"
-          KeyType: "RANGE"
+          KeyType: "HASH"
       ProvisionedThroughput:
         ReadCapacityUnits: 5
         WriteCapacityUnits: 5
@@ -109,8 +105,10 @@ Resources:
     Type: "AWS::AppSync::GraphQLApi"
     Description: "The GraphQL API for the Notes App"
     Properties:
-      AuthenticationType: "AWS_IAM"
+      AuthenticationType: API_KEY
       Name: !Sub ${APIName}
+      AdditionalAuthenticationProviders:
+        - AuthenticationType: AWS_IAM
       # LogConfig:
       #   CloudWatchLogsRoleArn: String
       #   ExcludeVerboseContent: false
@@ -121,7 +119,12 @@ Resources:
     Properties:
       ApiId: !GetAtt AppSyncApi.ApiId
       DefinitionS3Location: "s3://graph-ql-demo/schema-v1_1.graphql"
-  
+
+  ApiKey:
+    Type: AWS::AppSync::ApiKey
+    Properties:
+     ApiId: !GetAtt AppSyncApi.ApiId
+
   AppSyncNotesTableDataSource:
     Type: "AWS::AppSync::DataSource"
     Properties:
@@ -168,8 +171,7 @@ Resources:
           "version": "2017-02-28",
           "operation": "GetItem",
           "key": {
-            "NoteId": $util.dynamodb.toDynamoDBJson($context.arguments.NoteId),
-            "UserId": $util.dynamodb.toDynamoDBJson($context.identity.userArn)
+            "NoteId": $util.dynamodb.toDynamoDBJson($context.arguments.NoteId)
           }
         }
       ResponseMappingTemplate: "$util.toJson($context.result)"
@@ -187,8 +189,7 @@ Resources:
           "version": "2017-02-28",
           "operation": "PutItem",
           "key": {
-            "NoteId": $util.dynamodb.toDynamoDBJson($context.arguments.NoteId),
-            "UserId": $util.dynamodb.toDynamoDBJson($context.identity.userArn)
+            "NoteId": $util.dynamodb.toDynamoDBJson($context.arguments.NoteId)
           },
           "attributeValues": {
             "title": $util.dynamodb.toDynamoDBJson($context.arguments.title),
@@ -210,11 +211,10 @@ Resources:
           "version": "2017-02-28",
           "operation": "DeleteItem",
           "key": {
-            "NoteId": $util.dynamodb.toDynamoDBJson($ctx.args.NoteId),
-            "UserId": $util.dynamodb.toDynamoDBJson($ctx.identity.sub)
+            "NoteId": $util.dynamodb.toDynamoDBJson($context.args.NoteId)
           }
         }
-      ResponseMappingTemplate: "$util.toJson($ctx.result)"
+      ResponseMappingTemplate: "$util.toJson($context.result)"
 
   SayHelloResolver:
     Type: "AWS::AppSync::Resolver"
@@ -225,12 +225,11 @@ Resources:
       DataSourceName: !GetAtt AppSyncLambdaDataSource.Name
 
 Outputs:
-  DynamoDBNotesTableName:
-    Description: The name of the DynamoDB Table
+  NotesTableName:
     Value: !Ref DynamoDBNotesTable
   GraphQLApiEndpoint:
-    Description: The URL to the GraphQL Endpoint
     Value: !GetAtt AppSyncApi.GraphQLUrl
   GraphQLApiId:
-    Description: The API ID of the GraphQL API
     Value: !GetAtt AppSyncApi.ApiId
+  GraphQLKey:
+    Value: !GetAtt ApiKey.ApiKey
