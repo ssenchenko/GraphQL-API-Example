@@ -2,11 +2,11 @@ Transform: AWS::Serverless-2016-10-31
 
 Resources:
 # ============== Non AppSync resources ==============
-  DynamoDBNotesTable:
+  NotesTable:
     Type: "AWS::DynamoDB::Table"
     Description: "Data store for AWS AppSync Notes Type"
     Properties:
-      TableName: !Sub ${APIName}-notes-table
+      TableName: NotesTable
       AttributeDefinitions:
         - AttributeName: "NoteId"
           AttributeType: "S"
@@ -39,12 +39,12 @@ Resources:
     Type: "AWS::Serverless::GqlDataSource"
     Properties:
       Api: SamGraphQl
-      Name: !Sub NotesDataSource
+      Name: NotesDataSource
       Type: AMAZON_DYNAMODB
       # maps to DynamoDbConfig + permissions to access
       DynamoDBConfig: 
         AwsRegion: !Sub ${AWS::Region}
-        TableName: !Ref DynamoDBNotesTable
+        TableName: !Ref NotesTable
 
   AllMyNotes:
     Type:  "AWS::Serverless::GqlVtlResolver"
