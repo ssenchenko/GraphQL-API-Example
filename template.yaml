@@ -32,12 +32,19 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: ./lambdas/hello-world/
-      Handler: hello-world
+      Handler: main
       Runtime: go1.x
-      Architectures:
-        - x86_64
-      MemorySize: 256
-      Timeout: 100
+
+  ClientRead:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./lambdas/client-read/
+      Handler: main
+      Runtime: go1.x
+      Environment:
+        Variables:
+          API_KEY: !GetAtt  ApiKey.ApiKey
+          GRAPHQL_URL: !GetAtt AppSyncApi.GraphQLUrl
 
 # ================= Connectors between AppSync and Other Resources =================
   DynamoDBRole:
@@ -223,6 +230,8 @@ Resources:
       TypeName: "Query"
       FieldName: "sayHello"
       DataSourceName: !GetAtt AppSyncLambdaDataSource.Name
+
+  
 
 Outputs:
   NotesTableName:
