@@ -26,23 +26,23 @@ func main() {
 }
 
 func saveNote(url string, apiKey string) (*http.Response, error) {
-	const saveNote string = `mutation {
+	const kSaveNote string = `mutation {
 		saveNote(content: "some note", NoteId: "2", title: "1st note") {
 			title,
 			content
 		}
 	}`
-	return makeRequest(saveNote, url, apiKey)
+	return makeRequest(kSaveNote, url, apiKey)
 }
 
 func getNote(url string, apiKey string) (*http.Response, error) {
-	const getNote string = `query {
+	const kGetNote string = `query {
 		getNote(NoteId: "2") {
 			title
 			content
 		}
 	}`
-	return makeRequest(getNote, url, apiKey)
+	return makeRequest(kGetNote, url, apiKey)
 }
 
 func makeRequest(graphQl string, url string, apiKey string) (response *http.Response, err error) {
