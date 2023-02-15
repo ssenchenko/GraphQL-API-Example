@@ -46,6 +46,17 @@ Resources:
           API_KEY: !GetAtt  ApiKey.ApiKey
           GRAPHQL_URL: !GetAtt AppSyncApi.GraphQLUrl
 
+  ClientReadJS:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./lambdas/client-read-js
+      Runtime: nodejs18.x
+      Handler: index.handler
+      Environment:
+        Variables:
+          API_KEY: !GetAtt  ApiKey.ApiKey
+          GRAPHQL_URL: !GetAtt AppSyncApi.GraphQLUrl
+
 # ================= Connectors between AppSync and Other Resources =================
   DynamoDBRole:
     Type: AWS::IAM::Role
