@@ -49,7 +49,7 @@ Resources:
   ClientReadJS:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: ./lambdas/client-read-js
+      CodeUri: ./lambdas/client-js
       Runtime: nodejs18.x
       Handler: index.handler
       Environment:
