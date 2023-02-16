@@ -1,32 +1,33 @@
 exports.handler = async (_) => {
-  const getNote = /* GraphQL */ `
-    query {
-      getNote(NoteId: "1") {
-        title
-        content
+  const queries = {
+    getNote: /* GraphQL */ `
+      query {
+        getNote(NoteId: "1") {
+          title
+          content
+        }
       }
-    }
-  `;
-
-  const saveNote = /* GraphQL */ `
-    mutation {
-      saveNote(content: "some note", NoteId: "1", title: "1st note") {
-        title
-        content
+    `,
+    saveNote: /* GraphQL */ `
+      mutation {
+        saveNote(content: "some note", NoteId: "1", title: "1st note") {
+          title
+          content
+        }
       }
-    }
-  `;
+    `,
+  };
 
-  const doRequest = async (query) => {
+  const makeRequest = async (queryName) => {
     const options = {
       method: "POST",
       headers: {
         "x-api-key": process.env.API_KEY,
       },
-      body: JSON.stringify({ query }),
+      body: JSON.stringify({ query: queries[queryName] }),
     };
 
-    let statusCode = 200;
+    let statusCode;
     let body;
     let response;
 
@@ -34,17 +35,32 @@ exports.handler = async (_) => {
       /*global fetch*/
       response = await fetch(process.env.GRAPHQL_URL, options);
       body = await response.json();
-      if (body.errors) statusCode = 400;
+      const data = body.data?.[queryName];
+      const hasNoErrors = body.errors === undefined;
+      const allFieldsAreSet =
+        data?.title === "1st note" && data?.content === "some note";
+      statusCode = hasNoErrors && allFieldsAreSet ? 200 : 400;
+      if (hasNoErrors) {
+        body = body.data;
+      } else {
+        body = {
+          [queryName]: {
+            errors: body.errors,
+          },
+        };
+      }
     } catch (error) {
       statusCode = 400;
       body = {
-        errors: [
-          {
-            status: response.status,
-            message: error.message,
-            stack: error.stack,
-          },
-        ],
+        [queryName]: {
+          errors: [
+            {
+              status: response.status,
+              message: error.message,
+              stack: error.stack,
+            },
+          ],
+        },
       };
     }
     return {
@@ -53,25 +69,20 @@ exports.handler = async (_) => {
     };
   };
 
-  let response = await doRequest(saveNote);
+  let response = await makeRequest("saveNote");
   if (response.statusCode !== 200) {
     return {
       StatusCode: response.statusCode,
-      Body: JSON.stringify(response.body),
+      Body: response.body,
     };
   }
-  let body = {
-    saveNote: response.body,
-  };
+  let body = response.body;
 
-  response = await doRequest(getNote);
-  body = {
-    ...body,
-    getNote: response.body,
-  };
+  response = await makeRequest("getNote");
+  body = { ...body, ...response.body };
 
   return {
     StatusCode: response.statusCode,
-    Body: JSON.stringify(body),
+    Body: body,
   };
 };
