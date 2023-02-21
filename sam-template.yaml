@@ -3,23 +3,25 @@ Transform: AWS::Serverless-2016-10-31
 Resources:
 # ============== Non AppSync resources ==============
   NotesTable:
-    Type: "AWS::DynamoDB::Table"
-    Description: "Data store for AWS AppSync Notes Type"
+    Type: "AWS::Serverless::SimpleTable"
+
+  AllMyNotes:
+    Type: AWS::Serverless::Function
     Properties:
-      TableName: NotesTable
-      AttributeDefinitions:
-        - AttributeName: "NoteId"
-          AttributeType: "S"
-        - AttributeName: "UserId"
-          AttributeType: "S"
-      KeySchema:
-        - AttributeName: "UserId"
-          KeyType: "HASH"
-        - AttributeName: "NoteId"
-          KeyType: "RANGE"
-      ProvisionedThroughput:
-        ReadCapacityUnits: 5
-        WriteCapacityUnits: 5
+      CodeUri: ./lambdas/all_my_notes/
+      Handler: main
+      Runtime: go1.x
+      Environment:
+        Variables:
+          API_KEY: !GetAtt SamGraphQl.OneKeyToRuleThemAll.ApiKey
+          GRAPHQL_URL: !GetAtt SamGraphQl.GraphQLUrl
+      Connectors:
+        ReadNotes:
+          Properties:
+            Destination:
+              Id: NotesTable
+            Permissions:
+              - Read
 
 # ================== Graph QL resources ============================
   SamGraphQl:
@@ -32,90 +34,90 @@ Resources:
         Runtime:
           Name: APPSYNC_JS
           RuntimeVersion: "1.0.0"
-      Auth:
-        Type: AWS_IAM
+      AuthenticationType: API_KEY
+      ApiKeys:
+        - OneKeyToRuleThemAll:
+            ExpiresOn: 2023-10-17
+        - OnlyToRead: {}
+      DynamoDbDataSources:
+        - NotesReadWriteDataSource:
+            TableName: !Ref NotesTable
+        - NotesReadDataSource:
+          TableName: !Ref NotesTable
+          Permissions:
+            - Read
+      LambdaResolvers:
+        - AllMyNotesLambda:
+            LambdaArn: !GetAtt AllMyNotes.Arn
+            Fields:
+              - FieldName: allMyNotes
+                FieldType: Query
+        - HelloLambda:
+            LambdaFunctionArn: !GetAtt HelloLambda.Arn
+            Fields:
+              - FieldName: sayHello
+                CodeUri: s3://my-library/utilitites/sayHello.js
+                FieldType: Query
+              - FieldName: helloWorld
+                FieldType: Query
+            ServiceRoleArn: !GetAtt AppSyncApiLambdaInvocationRole.Arn
+      AppSyncResolvers:
+        - DataSourceName: NotesReadWriteDataSource
+          FieldName: saveNote
+          FieldType: Mutation
+          GenerateCode: True
+          Functions:
+            - SaveNote: {}
+            - Notify-version11111
+            - MakeMeCoffee
+            - PlayMusic:
+                Id: !GetAtt AppSyncPlayMusicFunction.FunctionId
+        # TODO: add when AppSync supports JS for unit resolvers in CFN
+        # - DataSourceName: TableReadOnlyDataSource
+        #   FieldName: getNote
+        #   FieldType: Query
+      Functions:
+        - Notify-version11111:
+            Name: Notify
+            DataSourceName: NONE
+        - MakeMeCoffee:
+            CodeUri: "s3://my-library/utilitites/makeCoffee.js"
+            DataSourceName: !GetAtt HttpApiDataSource.Name
 
-  Notes:
-    Type: "AWS::Serverless::GqlDataSource"
+  HttpApiDataSource:
+    Type: "AWS::AppSync::DataSource"
     Properties:
-      Api: SamGraphQl
-      Name: NotesDataSource
-      Type: AMAZON_DYNAMODB
-      # maps to DynamoDbConfig + permissions to access
-      DynamoDBConfig: 
-        AwsRegion: !Sub ${AWS::Region}
-        TableName: !Ref NotesTable
+      ApiId: !GetAtt SamGraphQl.ApiId
+      Name: CoffeeMaker
+      Type: HTTP
+      HttpConfig:
+        Endpoint: "https://remote-coffee.machine/"
 
-  AllMyNotes:
-    Type:  "AWS::Serverless::GqlVtlResolver"
+  AppSyncDeleteNoteResolver:
+    Type: "AWS::AppSync::Resolver"
+    DependsOn: AppSyncSchema
     Properties:
-      Api: SamGraphQl
-      DataSource: Notes
-      TypeName: Query
-      FieldName: allMyNotes
-
-  GetNote:
-    Type: "AWS::Serverless::GqlVtlResolver"
-    Properties:
-      Api: SamGraphQl
-      DataSource: Notes
-      TypeName: Query
-      FieldName: getNote
-      MappingTemplate:
-        RequestInline: |
-          {
-            "version": "2017-02-28",
-            "operation": "GetItem",
-            "key": {
-              "NoteId": $util.dynamodb.toDynamoDBJson($context.arguments.NoteId),
-              "UserId": $util.dynamodb.toDynamoDBJson($context.identity.userArn)
-            }
-          }
-        ResponseInline: "$util.toJson($context.result)"
-
-  SaveNote:
-    Type: "AWS::Serverless::GqlVtlResolver"
-    Properties:
-      Api: SamGraphQl
-      DataSource: Notes
-      TypeName: Mutation
-      FieldName: saveNote
-      MappingTemplate:
-        RequestInline: |
-          {
-            "version": "2017-02-28",
-            "operation": "PutItem",
-            "key": {
-              "NoteId": $util.dynamodb.toDynamoDBJson($context.arguments.NoteId),
-              "UserId": $util.dynamodb.toDynamoDBJson($context.identity.userArn)
-            },
-            "attributeValues": {
-              "title": $util.dynamodb.toDynamoDBJson($context.arguments.title),
-              "content": $util.dynamodb.toDynamoDBJson($context.arguments.content)
-            }
-          }
-        ResponseInline: "$util.toJson($context.result)"
-
-  DeleteNoteFn:
-    Type: "AWS::Serverless::GqlFunction"
-    Properties:
-      Api: SamGraphQl
-      DataSource: Notes
-      Name: DeleteNote
-
-  NotifyOnDeleteFn:
-    Type: "AWS::Serverless::GqlFunction"
-    Properties:
-      Api: SamGraphQl
-      DataSource: Notes
-      Name: NotifyOnDelete
-
-  DeleteNote:
-    Type: "AWS::Serverless::GqlResolver"
-    Properties:
-      Api: SamGraphQl
+      ApiId: !GetAtt SamGraphQl.ApiId
+      DataSourceName: !GetAtt SamGraphQl.DataSource.TableReadWriteDataSource.Name
       TypeName: Mutation
       FieldName: deleteNote
-      Functions:
-        - !GetAtt DeleteNoteFn.FunctionId
-        - !GetAtt NotifyOnDeleteFn.FunctionId
+      RequestMappingTemplate: |
+        {
+          "version": "2017-02-28",
+          "operation": "DeleteItem",
+          "key": {
+            "id": $util.dynamodb.toDynamoDBJson($context.args.id)
+          }
+        }
+      ResponseMappingTemplate: "$util.toJson($context.result)"
+
+  AppSyncPlayMusicFunction:
+    Type: AWS::AppSync::FunctionConfiguration
+    Properties: 
+      ApiId: !GetAtt SamGraphQl.ApiId
+      CodeS3Location: "s3://my-library/utilitites/makeCoffee.js"
+      DataSourceName: NONE
+      Name: PlayMusic
+      Runtime: 
+        Name: APPSYNC_JS
+        RuntimeVersion: "1.0.0"
