@@ -36,31 +36,31 @@ Resources:
           RuntimeVersion: "1.0.0"
       AuthenticationType: API_KEY
       ApiKeys:
-        - OneKeyToRuleThemAll:
-            ExpiresOn: 2023-10-17
-        - OnlyToRead: {}
+        OneKeyToRuleThemAll:
+          ExpiresOn: 2023-10-17
+        OnlyToRead: {}
       DynamoDbDataSources:
-        - NotesReadWriteDataSource:
-            TableName: !Ref NotesTable
-        - NotesReadDataSource:
+        NotesReadWriteDataSource:
+          TableName: !Ref NotesTable
+        NotesReadDataSource:
           TableName: !Ref NotesTable
           Permissions:
             - Read
       LambdaResolvers:
-        - AllMyNotesLambda:
-            LambdaArn: !GetAtt AllMyNotes.Arn
-            Fields:
-              - FieldName: allMyNotes
-                FieldType: Query
-        - HelloLambda:
-            LambdaFunctionArn: !GetAtt HelloLambda.Arn
-            Fields:
-              - FieldName: sayHello
-                CodeUri: s3://my-library/utilitites/sayHello.js
-                FieldType: Query
-              - FieldName: helloWorld
-                FieldType: Query
-            ServiceRoleArn: !GetAtt AppSyncApiLambdaInvocationRole.Arn
+        AllMyNotesLambda:
+          LambdaArn: !GetAtt AllMyNotes.Arn
+          Fields:
+            - FieldName: allMyNotes
+              FieldType: Query
+        HelloLambda:
+          LambdaFunctionArn: !GetAtt HelloLambda.Arn
+          Fields:
+            - FieldName: sayHello
+              CodeUri: s3://my-library/utilitites/sayHello.js
+              FieldType: Query
+            - FieldName: helloWorld
+              FieldType: Query
+          ServiceRoleArn: !GetAtt AppSyncApiLambdaInvocationRole.Arn
       AppSyncResolvers:
         - DataSourceName: NotesReadWriteDataSource
           FieldName: saveNote
@@ -77,12 +77,12 @@ Resources:
         #   FieldName: getNote
         #   FieldType: Query
       Functions:
-        - Notify-version11111:
-            Name: Notify
-            DataSourceName: NONE
-        - MakeMeCoffee:
-            CodeUri: "s3://my-library/utilitites/makeCoffee.js"
-            DataSourceName: !GetAtt HttpApiDataSource.Name
+        Notify-version11111:
+          Name: Notify
+          DataSourceName: NONE
+        MakeMeCoffee:
+          CodeUri: "s3://my-library/utilitites/makeCoffee.js"
+          DataSourceName: !GetAtt HttpApiDataSource.Name
 
   HttpApiDataSource:
     Type: "AWS::AppSync::DataSource"

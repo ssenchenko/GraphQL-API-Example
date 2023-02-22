@@ -181,9 +181,9 @@ Resources:
     DependsOn: AppSyncSchema
     Properties:
       ApiId: !GetAtt AppSyncApi.ApiId
+      DataSourceName: !GetAtt AppSyncNotesTableDataSource.Name
       TypeName: Query
       FieldName: getNote
-      DataSourceName: !GetAtt AppSyncNotesTableDataSource.Name
       RequestMappingTemplate: |
         {
           "version": "2017-02-28",
