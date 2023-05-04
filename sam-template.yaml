@@ -28,7 +28,7 @@ Resources:
     Type: "AWS::Serverless::GraphQLApi"
     Properties:
       Name: MyNotes
-      SchemaUri: "s3://graph-ql-demo/schema-v1.graphql"
+      SchemaUri: "schema-v1.graphql"
       MappingConfig:
         PathToCode: "s3://graph-ql-demo/"
         Runtime:
@@ -47,36 +47,33 @@ Resources:
           Permissions:
             - Read
       LambdaResolvers:
-        AllMyNotesLambda:
-          LambdaArn: !GetAtt AllMyNotes.Arn
-          Fields:
-            - FieldName: allMyNotes
-              FieldType: Query
-        HelloLambda:
-          LambdaFunctionArn: !GetAtt HelloLambda.Arn
-          Fields:
-            - FieldName: sayHello
-              CodeUri: s3://my-library/utilitites/sayHello.js
-              FieldType: Query
-            - FieldName: helloWorld
-              FieldType: Query
-          ServiceRoleArn: !GetAtt AppSyncApiLambdaInvocationRole.Arn
+        Query:
+          AllMyNotes: 
+            LambdaArn: !GetAtt AllMyNotes.Arn
+          SayHello:
+            LambdaArn: !GetAtt HelloLambda.Arn
+            CodeUri: s3://my-library/utilitites/sayHello.js
+        Mutation:
+          ChangeName:
+            LambdaArn: !GetAtt ChangeNameLambda.Arn
+            ServiceRoleArn: !GetAtt AppSyncChangeNameLambdaInvocationRole.Arn
       AppSyncResolvers:
-        - DataSourceName: NotesReadWriteDataSource
-          FieldName: saveNote
-          FieldType: Mutation
-          GenerateCode: True
-          Functions:
-            - SaveNote: {}
-            - Notify-version11111
-            - MakeMeCoffee
-            - PlayMusic:
-                Id: !GetAtt AppSyncPlayMusicFunction.FunctionId
+        # Type: Note.NoteId
+        Mutation:
+          SaveNote:
+            DataSourceName: NotesReadWriteDataSource
+            GenerateCode: True
+            Functions: # PipelineFunction
+              - SaveNote: {}
+              - Notify-version11111
+              - MakeMeCoffee
+              - PlayMusic:
+                  Id: !GetAtt AppSyncPlayMusicFunction.FunctionId
         # TODO: add when AppSync supports JS for unit resolvers in CFN
-        # - DataSourceName: TableReadOnlyDataSource
-        #   FieldName: getNote
-        #   FieldType: Query
-      Functions:
+        # Query: # Query is obviously enable 
+        #   GetNote:
+        #     DataSourceName: TableReadOnlyDataSource
+      Functions: # PipelineFunction - change?
         Notify-version11111:
           Name: Notify
           DataSourceName: NONE

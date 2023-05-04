@@ -1,0 +1,49 @@
+Transform: AWS::Serverless-2016-10-31
+
+Resources:
+  NotesTable:
+    Type: "AWS::Serverless::SimpleTable"
+  ObservationsTable:
+    Type: "AWS::Serverless::SimpleTable"
+
+  SamGraphQl:
+    Type: "AWS::Serverless::GraphQLApi"
+    Properties:
+      Name: MyNotes
+      SchemaUri: "schema.graphql"
+      CodeSettings:
+        PathToCode: "src"
+        Runtime:
+          Name: APPSYNC_JS
+          RuntimeVersion: "1.0.0"
+      Auth:
+        Type: API_KEY
+      ApiKeys:
+        OneKeyToRuleThemAll:
+          ExpiresOn: 2023-10-17
+      DynamoDbDataSources:
+        NotesTableDataSource:
+          TableName: !Ref NotesTable
+        ObservationsTableDataSource:
+          TableName: !Ref ObservationsTable
+      AppSyncResolvers:
+        Mutation:
+          createNote:
+            Pipeline:
+              - readObservataions
+              - transformObservations
+              - createNote
+              - notify
+      PipelineFunctions:
+        readObservataions: 
+          CodeUri: "functions/readObservataions.js"
+          DataSource: ObservationsTableDataSource
+        transformObservations: 
+          CodeUri: "functions/transformObservations.js"
+          DataSource: ObservationsTableDataSource
+        createNote:
+          CodeUri: "functions/createNote.js"
+          DataSource: NotesTableDataSource
+        notify:
+          CodeUri: "functions/notify.js"
+          DataSource: NONE # this None is case insensitive

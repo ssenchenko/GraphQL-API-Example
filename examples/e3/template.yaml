@@ -1,0 +1,48 @@
+Transform: AWS::Serverless-2016-10-31
+
+Resources:
+  SamGraphQl:
+    Type: "AWS::Serverless::GraphQLApi"
+    Properties:
+      Name: MyNotes
+      SchemaUri: "schema-v1.graphql"
+      Runtime:
+          Name: APPSYNC_JS
+          RuntimeVersion: "1.0.0"
+      Auth:
+        Type: API_KEY
+      ApiKeys:
+        OneKeyToRuleThemAll:
+          ExpiresOn: 2023-10-17
+      Resolvers:
+        Mutation:
+          makeCoffe:
+            Pipeline:
+              - makeCoffee
+              - playMusic
+      PipelineFunctions: 
+        makeCoffee:
+          CodeUri: "functions/makeCoffee.js"
+          DataSourceName: !GetAtt HttpApiDataSource.Name
+        playMusic:
+          Id: !GetAtt AppSyncPlayMusicFunction.FunctionId
+
+  HttpApiDataSource:
+    Type: "AWS::AppSync::DataSource"
+    Properties:
+      ApiId: !GetAtt SamGraphQl.ApiId
+      Name: CoffeeMaker
+      Type: HTTP
+      HttpConfig:
+        Endpoint: "https://remote-coffee.machine/"
+
+  AppSyncPlayMusicFunction:
+    Type: AWS::AppSync::FunctionConfiguration
+    Properties: 
+      ApiId: !GetAtt SamGraphQl.ApiId
+      CodeS3Location: "s3://my-library/utilitites/makeCoffee.js"
+      DataSourceName: !GetAtt HttpApiDataSource.Name
+      Name: PlayMusic
+      Runtime: 
+        Name: APPSYNC_JS
+        RuntimeVersion: "1.0.0"

@@ -1,0 +1,144 @@
+Transform: AWS::Serverless-2016-10-31
+
+Resources:
+# ============== Non AppSync resources ==============
+  NotesTable:
+    Type: "AWS::Serverless::SimpleTable"
+
+# ================= Connectors between AppSync and Other Resources =================
+  AppSyncDynamoDBRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - sts:AssumeRole
+            Principal:
+              Service:
+                - appsync.amazonaws.com
+
+  AppSyncDynamoDBPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Roles:
+        - !Ref AppSyncDynamoDBRole
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - dynamodb:GetItem
+              - dynamodb:PutItem
+              - dynamodb:DeleteItem
+              - dynamodb:UpdateItem
+              - dynamodb:Query
+              - dynamodb:Scan
+              - dynamodb:BatchGetItem
+              - dynamodb:BatchWriteItem
+            Resource: !Join [ "", [ !GetAtt NotesTable.Arn, "*" ] ]
+
+# ================= AppSync Resources =================
+  AppSyncApi:
+    Type: "AWS::AppSync::GraphQLApi"
+    Description: "The GraphQL API for the Notes App"
+    Properties:
+      AuthenticationType: API_KEY
+      Name: Api
+
+  AppSyncSchema:
+    Type: "AWS::AppSync::GraphQLSchema"
+    Properties:
+      ApiId: !GetAtt AppSyncApi.ApiId
+      Definition: |
+        type Note {
+          id: ID!
+          title: String
+          content: String
+        }
+        type Query {
+          getNote(id: ID!): Note
+        }
+        type Mutation {
+          saveNote(id: ID!, title: String!, content: String!): Note!
+          deleteNote(id: ID!): Note
+        }
+        schema {
+          query: Query
+          mutation: Mutation
+        }
+
+  ApiKey:
+    Type: AWS::AppSync::ApiKey
+    Properties:
+     ApiId: !GetAtt AppSyncApi.ApiId
+
+  NotesTableDataSource:
+    Type: "AWS::AppSync::DataSource"
+    Properties:
+      ApiId: !GetAtt AppSyncApi.ApiId
+      Name: NotesTableDataSource
+      Type: AMAZON_DYNAMODB
+      ServiceRoleArn: !GetAtt DynamoDBRole.Arn
+      DynamoDBConfig:
+        TableName: !Ref NotesTable
+        AwsRegion: !Sub ${AWS::Region}
+
+  GetNoteResolver:
+    Type: "AWS::AppSync::Resolver"
+    DependsOn: AppSyncSchema
+    Properties:
+      ApiId: !GetAtt AppSyncApi.ApiId
+      DataSourceName: !GetAtt NotesTableDataSource.Name
+      TypeName: Query
+      FieldName: getNote
+      RequestMappingTemplate: |
+        {
+          "version": "2017-02-28",
+          "operation": "GetItem",
+          "key": {
+            "NoteId": $util.dynamodb.toDynamoDBJson($context.arguments.NoteId)
+          }
+        }
+      ResponseMappingTemplate: "$util.toJson($context.result)"
+
+  SaveNoteResolver:
+    Type: "AWS::AppSync::Resolver"
+    DependsOn: AppSyncSchema
+    Properties:
+      ApiId: !GetAtt AppSyncApi.ApiId
+      TypeName: Mutation
+      FieldName: saveNote
+      DataSourceName: !GetAtt NotesTableDataSource.Name
+      RequestMappingTemplate: |
+        {
+          "version": "2017-02-28",
+          "operation": "PutItem",
+          "key": {
+            "NoteId": $util.dynamodb.toDynamoDBJson($context.arguments.NoteId)
+          },
+          "attributeValues": {
+            "title": $util.dynamodb.toDynamoDBJson($context.arguments.title),
+            "content": $util.dynamodb.toDynamoDBJson($context.arguments.content)
+          }
+        }
+      ResponseMappingTemplate: "$util.toJson($context.result)"
+
+  DeleteNoteResolver:
+    Type: "AWS::AppSync::Resolver"
+    DependsOn: AppSyncSchema
+    Properties:
+      ApiId: !GetAtt AppSyncApi.ApiId
+      TypeName: Mutation
+      FieldName: deleteNote
+      DataSourceName: !GetAtt NotesTableDataSource.Name
+      RequestMappingTemplate: |
+        {
+          "version": "2017-02-28",
+          "operation": "DeleteItem",
+          "key": {
+            "NoteId": $util.dynamodb.toDynamoDBJson($context.args.NoteId)
+          }
+        }
+      ResponseMappingTemplate: "$util.toJson($context.result)"

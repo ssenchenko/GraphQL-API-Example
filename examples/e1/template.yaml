@@ -1,0 +1,45 @@
+Transform: AWS::Serverless-2016-10-31
+
+Resources:
+  NotesTable:
+    Type: "AWS::Serverless::SimpleTable"
+
+  SamGraphQl:
+    Type: "AWS::Serverless::GraphQLApi"
+    Properties:
+      Name: MyNotes
+      SchemaUri: "schema.graphql"
+      Defaults:
+        PipelineFunctions:
+          DataSource: NotesTable
+          Runtime:
+            Name: APPSYNC_JS
+            RuntimeVersion: "1.0.0"
+      Auth:
+        Type: API_KEY
+      ApiKeys:
+        OneKeyToRuleThemAll:
+          ExpiresOn: 2023-10-17
+      DataSources:
+        DynamoDB:
+          NotesTable:
+            TableName: !Ref NotesTable
+      Resolvers:
+        Mutation:
+          saveNote:
+            Pipeline: 
+              - saveNote
+          deleteNote:
+            Pipeline: 
+              - deleteNote
+        Query:
+          getNote:
+            Pipeline: 
+              - getNote
+      PipelineFunctions:
+        getNote:
+          CodeUri: "function/getNote.js"
+        deleteNote:
+          CodeUri: "functions/deleteNote.js"
+        saveNote:
+          CodeUri: "functions/saveNote.js"

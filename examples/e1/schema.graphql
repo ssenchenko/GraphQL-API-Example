@@ -4,15 +4,8 @@ type Note {
   content: String
 }
 
-type PaginatedNotes {
-  notes: [Note!]!
-  nextToken: String
-}
-
 type Query {
-  allMyNotes(limit: Int, nextToken: String): PaginatedNotes!
   getNote(NoteId: ID!): Note
-  sayHello(name: String!): String!
 }
 
 type Mutation {

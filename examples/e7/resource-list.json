@@ -1,0 +1,54 @@
+[
+  {
+    "LogicalResourceId": "MyApiKey",
+    "ResourceType": "AWS::AppSync::ApiKey"
+  },
+  {
+    "LogicalResourceId": "SuperCoolAPI",
+    "ResourceType": "AWS::AppSync::GraphQLApi"
+  },
+  {
+    "LogicalResourceId": "SuperCoolAPISchema",
+    "ResourceType": "AWS::AppSync::GraphQLSchema"
+  },
+  {
+    "LogicalResourceId": "SuperCoolAPICloudWatchRole",
+    "ResourceType": "AWS::IAM::Role"
+  },
+  {
+    "LogicalResourceId": "SuperCoolAPIDataSourceDynamoDbPostsDataSource",
+    "ResourceType": "AWS::AppSync::DataSource"
+  },
+  {
+    "LogicalResourceId": "SuperCoolAPIDataSourceDynamoDbPostsDataSourceRole",
+    "ResourceType": "AWS::IAM::Role"
+  },
+  {
+    "LogicalResourceId": "SuperCoolAPIDataSourceDynamoDbPostsDataSourceToTableConnectorPolicy",
+    "ResourceType": "AWS::IAM::ManagedPolicy"
+  },
+  {
+    "LogicalResourceId": "SuperCoolAPIcreatePostItem",
+    "ResourceType": "AWS::AppSync::FunctionConfiguration"
+  },
+  {
+    "LogicalResourceId": "SuperCoolAPIformatPostItem",
+    "ResourceType": "AWS::AppSync::FunctionConfiguration"
+  },
+  {
+    "LogicalResourceId": "SuperCoolAPIAddPost",
+    "ResourceType": "AWS::AppSync::Resolver"
+  },
+  {
+    "LogicalResourceId": "SuperCoolAPIgetPostFromTable",
+    "ResourceType": "AWS::AppSync::FunctionConfiguration"
+  },
+  {
+    "LogicalResourceId": "SuperCoolAPIQuerygetPost",
+    "ResourceType": "AWS::AppSync::Resolver"
+  },
+  {
+    "LogicalResourceId": "SuperCoolAPINoneDataSource",
+    "ResourceType": "AWS::AppSync::DataSource"
+  }
+]

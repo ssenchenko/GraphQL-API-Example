@@ -1,0 +1,9 @@
+version = 0.1
+[default.deploy.parameters]
+stack_name = "SuperDuper"
+resolve_s3 = true
+s3_prefix = "SuperDuper"
+region = "us-west-2"
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "DDBPutItemCode=\"import { util } from \\\"@aws-appsync/utils\\\";\n\nexport function request(ctx) {\n    const { key, values } = ctx.prev.result;\n    return {\n      operation: \\\"PutItem\\\",\n      key: util.dynamodb.toMapValues(key),\n      attributeValues: util.dynamodb.toMapValues(values),\n    };\n}\n\nexport function response(ctx) {\n    return ctx.result;\n}\n\""
+image_repositories = []

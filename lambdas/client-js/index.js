@@ -1,3 +1,5 @@
+const https = require("https");
+
 exports.handler = async (_) => {
   const queries = {
     getNote: /* GraphQL */ `
@@ -18,6 +20,30 @@ exports.handler = async (_) => {
     `,
   };
 
+  const fetch = async (url, options) =>
+    new Promise((resolve, reject) => {
+      const req = https.request(url, options, (res) => {
+        const body = [];
+        res.on("data", (chunk) => body.push(chunk));
+        res.on("end", () => {
+          const resString = Buffer.concat(body).toString();
+          resolve(resString);
+        });
+      });
+
+      req.on("error", (err) => {
+        reject(err);
+      });
+
+      req.on("timeout", () => {
+        req.destroy();
+        reject(new Error("Request time out"));
+      });
+
+      req.write(options.body);
+      req.end();
+    });
+
   const makeRequest = async (queryName) => {
     const options = {
       method: "POST",
@@ -25,6 +51,7 @@ exports.handler = async (_) => {
         "x-api-key": process.env.API_KEY,
       },
       body: JSON.stringify({ query: queries[queryName] }),
+      timeout: 10000, // ms
     };
 
     let statusCode;
@@ -32,9 +59,8 @@ exports.handler = async (_) => {
     let response;
 
     try {
-      /*global fetch*/
       response = await fetch(process.env.GRAPHQL_URL, options);
-      body = await response.json();
+      body = JSON.parse(response);
       const data = body.data?.[queryName];
       const hasNoErrors = body.errors === undefined;
       const allFieldsAreSet =
