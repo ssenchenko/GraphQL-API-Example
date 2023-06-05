@@ -9,28 +9,32 @@ Resources:
     Properties:
       Name: MyNotes
       SchemaUri: "schema.graphql"
-      ResolverCodeSettings:
-        CodeRootPath: "."
+      Defaults:
         Runtime:
           Name: APPSYNC_JS
           Version: "1.0.0"
+        Functions:
+          DataSourceName: NotesTableDataSource
       Auth:
-        Type: API_KEY
-      # ApiKeys:
-      #   OneKeyToRuleThemAll:
-      #     ExpiresOn: 2023-10-17
+        Type: AWS_IAM
       DynamoDBDataSources:
         NotesTableDataSource:
           TableName: NotesTable
+      Resolvers:
+        Query:
+          getNote:
+            CodeUri: "./resolvers/getNote.js"
+            Pipeline:
+            - getNote
+          saveNote:
+            Pipeline:
+            - saveNote
       Functions:
         saveNote:
-          DataSourceName: NotesTableDataSource
           CodeUri: "./functions/saveNote.js"
         deleteNote:
-          DataSourceName: NotesTableDataSource
           CodeUri: "./functions/deleteNote.js"
         getNote:
-          DataSourceName: NotesTableDataSource
           InlineCode: |
             import { util } from '@aws-appsync/utils';
 

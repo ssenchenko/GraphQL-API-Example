@@ -2,18 +2,7 @@ Transform: AWS::Serverless-2016-10-31
 
 Resources:
   DynamoDBPostsTable:
-    Type: AWS::DynamoDB::Table
-    Properties:
-      TableName: posts-table
-      AttributeDefinitions:
-      - AttributeName: id
-        AttributeType: S
-      KeySchema:
-      - AttributeName: id
-        KeyType: HASH
-      ProvisionedThroughput:
-        ReadCapacityUnits: 5
-        WriteCapacityUnits: 5
+    Type: AWS::Serverless::SimpleTable
 
   SuperCoolAPI:
     Type: AWS::Serverless::GraphQLApi
@@ -46,21 +35,21 @@ Resources:
             version: Int!
         }
       Defaults:
-        ResolversAndPipelineFunctions: 
-          Runtime:
-            Name: APPSYNC_JS
-            RuntimeVersion: "1.0.0"
-        PipelineFunctions:
+        Runtime:
+          Name: APPSYNC_JS
+          Version: "1.0.0"
+        Functions:
           DataSource: PostsDataSource
       Auth:
         Type: API_KEY
-      ApiKeys:
-      - MyApiKey: {}
+      ApiKey:
+        MyApiKey: {}
       DataSources:
         DynamoDb:
           PostsDataSource:
             TableName: !Ref DynamoDBPostsTable
-      PipelineFunctions:
+            TableArn: !GetAtt DynamoDBPostsTable.Arn
+      Functions:
         formatPostItem:
           DataSource: NONE
           InlineCode: |
@@ -142,6 +131,4 @@ Outputs:
     Value: !GetAtt SuperCoolAPI.GraphQLUrl
   MyApiKey:
     Description: API Key for authentication
-    Value: !GetAtt MyApiKey.ApiKey
-Metadata:
-  SamTransformTest: true
+    Value: !GetAtt SuperCoolAPIMyApiKey.ApiKey

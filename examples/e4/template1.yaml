@@ -28,8 +28,6 @@ Resources:
       AppSyncResolvers:
         Mutation:
           createNote:
-            Caching:
-              Ttl: 3600
             Pipeline:
               - readObservataions
               - transformObservations
@@ -38,12 +36,16 @@ Resources:
           getNote:
             Caching:
               Ttl: 3600
+            DataSource: NotesTableDataSource
             Pipeline:
-              - getNote
+            - getNote:
+                CodeUri: "functions/getNote.js"
           deleteNote:
             Pipeline:
-              - deleteNote
-              - notify
+            - deleteNote:
+                CodeUri: "functions/deleteNote.js"
+                DataSource: NotesTableDataSource
+            - notify
       Functions:
         readObservataions: 
           CodeUri: "functions/readObservataions.js"
@@ -57,9 +59,3 @@ Resources:
         notify:
           CodeUri: "functions/notify.js"
           DataSource: NONE # this None is case insensitive
-        getNote:
-          CodeUri: "functions/getNote.js"
-          DataSource: NotesTableDataSource
-        deleteNote:
-          CodeUri: "functions/deleteNote.js"
-          DataSource: NotesTableDataSource

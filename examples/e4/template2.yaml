@@ -28,22 +28,22 @@ Resources:
       AppSyncResolvers:
         Mutation:
           createNote:
-            Caching:
-              Ttl: 3600
             Pipeline:
               - readObservataions
               - transformObservations
               - createNote
               - notify
-          getNote:
+          getNote:  # now it's just a UNIT resolver - no Pipeline
             Caching:
               Ttl: 3600
-            Pipeline:
-              - getNote
+            DataSource: NotesTableDataSource
+            CodeUri: "functions/getNote.js"
           deleteNote:
             Pipeline:
-              - deleteNote
-              - notify
+            - deleteNote:
+                CodeUri: "functions/deleteNote.js"
+                DataSource: NotesTableDataSource
+            - notify
       Functions:
         readObservataions: 
           CodeUri: "functions/readObservataions.js"
@@ -57,9 +57,3 @@ Resources:
         notify:
           CodeUri: "functions/notify.js"
           DataSource: NONE # this None is case insensitive
-        getNote:
-          CodeUri: "functions/getNote.js"
-          DataSource: NotesTableDataSource
-        deleteNote:
-          CodeUri: "functions/deleteNote.js"
-          DataSource: NotesTableDataSource

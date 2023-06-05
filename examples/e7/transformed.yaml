@@ -1,21 +1,19 @@
+---
 Resources:
   DynamoDBPostsTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: posts-table
       AttributeDefinitions:
       - AttributeName: id
         AttributeType: S
       KeySchema:
       - AttributeName: id
         KeyType: HASH
-      ProvisionedThroughput:
-        ReadCapacityUnits: 5
-        WriteCapacityUnits: 5
-
+      BillingMode: PAY_PER_REQUEST
   SuperCoolAPI:
     Type: AWS::AppSync::GraphQLApi
     Properties:
+      Name: SuperCoolAPI
       AuthenticationType: API_KEY
       LogConfig:
         FieldLogLevel: ALL
@@ -32,40 +30,31 @@ Resources:
         - ApiId
       Definition: |
         schema {
-          query: Query
-          mutation: Mutation
+            query: Query
+            mutation: Mutation
         }
 
         type Query {
-          getPost(id: String!): Post
+            getPost(id: String!): Post
         }
 
         type Mutation {
-          addPost(
+            addPost(
             author: String!,
             title: String!,
             content: String!,
-          ): Post!
+            ): Post!
         }
 
         type Post {
-          id: String!
-          author: String
-          title: String
-          content: String
-          ups: Int!
-          downs: Int!
-          version: Int!
+            id: String!
+            author: String
+            title: String
+            content: String
+            ups: Int!
+            downs: Int!
+            version: Int!
         }
-
-  MyApiKey:
-    Type: AWS::AppSync::ApiKey
-    Properties:
-      ApiId:
-        Fn::GetAtt:
-        - SuperCoolAPI
-        - ApiId
-
   SuperCoolAPICloudWatchRole:
     Type: AWS::IAM::Role
     Properties:
@@ -80,7 +69,13 @@ Resources:
             - appsync.amazonaws.com
       ManagedPolicyArns:
       - Fn::Sub: arn:${AWS::Partition}:iam::aws:policy/service-role/AWSAppSyncPushToCloudWatchLogs
-
+  SuperCoolAPIMyApiKey:
+    Type: AWS::AppSync::ApiKey
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+        - SuperCoolAPI
+        - ApiId
   SuperCoolAPIDataSourceDynamoDbPostsDataSource:
     Type: AWS::AppSync::DataSource
     Properties:
@@ -163,7 +158,6 @@ Resources:
                 - Arn
       Roles:
       - Ref: SuperCoolAPIDataSourceDynamoDbPostsDataSourceRole
-
   SuperCoolAPIformatPostItem:
     Type: AWS::AppSync::FunctionConfiguration
     Properties:
@@ -171,26 +165,11 @@ Resources:
         Fn::GetAtt:
         - SuperCoolAPI
         - ApiId
-      Code: |
-        import { util } from '@aws-appsync/utils';
-
-        export function request(ctx) {
-          const id = util.autoId();
-          const { ...values } = ctx.args;
-          values.ups = 1;
-          values.downs = 0;
-          values.version = 1;
-          return { 
-            payload: { 
-              key: {id},
-              values: values 
-            }
-          }
-        }
-
-        export function response(ctx) {
-          return ctx.result;
-        }
+      Code: "import { util } from '@aws-appsync/utils';\n\nexport function request(ctx)
+        {\n  const id = util.autoId();\n  const { ...values } = ctx.args;\n  values.ups
+        = 1;\n  values.downs = 0;\n  values.version = 1;\n  return { \n    payload:
+        { \n      key: {id},\n      values: values \n    }\n  }\n}\n\nexport function
+        response(ctx) {\n  return ctx.result;\n}\n"
       DataSourceName:
         Fn::GetAtt:
         - SuperCoolAPINoneDataSource
@@ -207,19 +186,24 @@ Resources:
         - SuperCoolAPI
         - ApiId
       Code: |
-        import { util } from "@aws-appsync/utils";
+        import { util } from '@aws-appsync/utils';
 
         export function request(ctx) {
-            const { key, values } = ctx.prev.result;
-            return {
-              operation: "PutItem",
-              key: util.dynamodb.toMapValues(key),
-              attributeValues: util.dynamodb.toMapValues(values),
-            };
+          return dynamoDBGetItemRequest({ id: ctx.args.id });
         }
 
         export function response(ctx) {
-            return ctx.result;
+          return ctx.result;
+        }
+
+        /**
+        * A helper function to get a DynamoDB item
+        */
+        function dynamoDBGetItemRequest(key) {
+          return {
+            operation: 'GetItem',
+            key: util.dynamodb.toMapValues(key),
+          };
         }
       DataSourceName:
         Fn::GetAtt:
@@ -229,39 +213,6 @@ Resources:
       Runtime:
         Name: APPSYNC_JS
         RuntimeVersion: 1.0.0
-  SuperCoolAPIaddPost:
-    Type: AWS::AppSync::Resolver
-    DependsOn:
-    - SuperCoolAPISchema
-    Properties:
-      ApiId:
-        Fn::GetAtt:
-        - SuperCoolAPI
-        - ApiId
-      Code: |
-
-        export function request(ctx) {
-            return {};
-        }
-
-        export function response(ctx) {
-            return ctx.prev.result;
-        }
-      FieldName: addPost
-      Kind: PIPELINE
-      PipelineConfig:
-        Functions:
-        - Fn::GetAtt:
-          - SuperCoolAPIformatPostItem
-          - FunctionId
-        - Fn::GetAtt:
-          - SuperCoolAPIcreatePostItem
-          - FunctionId
-      Runtime:
-        Name: APPSYNC_JS
-        RuntimeVersion: 1.0.0
-      TypeName: Mutation
-
   SuperCoolAPIgetPostFromTable:
     Type: AWS::AppSync::FunctionConfiguration
     Properties:
@@ -297,6 +248,38 @@ Resources:
       Runtime:
         Name: APPSYNC_JS
         RuntimeVersion: 1.0.0
+  SuperCoolAPIMutationaddPost:
+    Type: AWS::AppSync::Resolver
+    DependsOn:
+    - SuperCoolAPISchema
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+        - SuperCoolAPI
+        - ApiId
+      Code: |2
+
+        export function request(ctx) {
+            return {};
+        }
+
+        export function response(ctx) {
+            return ctx.prev.result;
+        }
+      FieldName: addPost
+      Kind: PIPELINE
+      PipelineConfig:
+        Functions:
+        - Fn::GetAtt:
+          - SuperCoolAPIformatPostItem
+          - FunctionId
+        - Fn::GetAtt:
+          - SuperCoolAPIcreatePostItem
+          - FunctionId
+      Runtime:
+        Name: APPSYNC_JS
+        RuntimeVersion: 1.0.0
+      TypeName: Mutation
   SuperCoolAPIQuerygetPost:
     Type: AWS::AppSync::Resolver
     DependsOn:
@@ -306,7 +289,8 @@ Resources:
         Fn::GetAtt:
         - SuperCoolAPI
         - ApiId
-      Code: |
+      Code: |2
+
         export function request(ctx) {
             return {};
         }
@@ -325,7 +309,6 @@ Resources:
         Name: APPSYNC_JS
         RuntimeVersion: 1.0.0
       TypeName: Query
-
   SuperCoolAPINoneDataSource:
     Type: AWS::AppSync::DataSource
     Properties:
@@ -335,7 +318,6 @@ Resources:
         - ApiId
       Name: SuperCoolAPINoneDataSource
       Type: NONE
-
 Outputs:
   SuperCoolAPI:
     Description: AppSync API
@@ -347,8 +329,5 @@ Outputs:
     Description: API Key for authentication
     Value:
       Fn::GetAtt:
-      - MyApiKey
+      - SuperCoolAPIMyApiKey
       - ApiKey
-
-Metadata:
-  SamTransformTest: true
