@@ -136,7 +136,7 @@ Resources:
     Type: "AWS::AppSync::GraphQLSchema"
     Properties:
       ApiId: !GetAtt AppSyncApi.ApiId
-      DefinitionS3Location: "s3://graph-ql-demo/schema-v1_1.graphql"
+      DefinitionS3Location: "./schema.graphql"
 
   ApiKey:
     Type: AWS::AppSync::ApiKey
@@ -173,8 +173,8 @@ Resources:
       TypeName: Query
       FieldName: allMyNotes
       DataSourceName: !GetAtt AppSyncNotesTableDataSource.Name
-      RequestMappingTemplateS3Location: "s3://graph-ql-demo/resolvers/allMyNotes.request.vtl"
-      ResponseMappingTemplateS3Location: "s3://graph-ql-demo/resolvers/allMyNotes.response.vtl"
+      RequestMappingTemplateS3Location: "./resolvers/allMyNotes.request.vtl"
+      ResponseMappingTemplateS3Location: "./resolvers/allMyNotes.response.vtl"
 
   AppSyncGetNoteQueryResolver:
     Type: "AWS::AppSync::Resolver"

@@ -51,6 +51,9 @@ Resources:
             TableArn: !GetAtt DynamoDBPostsTable.Arn
       Functions:
         formatPostItem:
+          Runtime:
+            Name: APPSYNC_JS
+            Version: "1.0.0"
           DataSource: NONE
           InlineCode: |
             import { util } from '@aws-appsync/utils';
@@ -73,6 +76,10 @@ Resources:
               return ctx.result;
             }
         createPostItem:
+          Runtime:
+            Name: APPSYNC_JS
+            Version: "1.0.0"
+          DataSource: PostsDataSource
           InlineCode: |
             import { util } from '@aws-appsync/utils';
 
@@ -94,6 +101,10 @@ Resources:
               };
             }
         getPostFromTable:
+          Runtime:
+            Name: APPSYNC_JS
+            Version: "1.0.0"
+          DataSource: PostsDataSource
           InlineCode: |
             import { util } from '@aws-appsync/utils';
 
@@ -117,11 +128,17 @@ Resources:
       Resolvers:
         Mutation:
           addPost:
+            Runtime:
+              Name: APPSYNC_JS
+              Version: "1.0.0"
             Pipeline:
             - formatPostItem
             - createPostItem
         Query:
           getPost:
+            Runtime:
+              Name: APPSYNC_JS
+              Version: "1.0.0"
             Pipeline:
             - getPostFromTable
 
