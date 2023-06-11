@@ -1,0 +1,53 @@
+Transform: AWS::Serverless-2016-10-31
+Resources:
+  MyLambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: index.handler
+      Runtime: nodejs14.x
+      CodeUri: ./lambda
+
+  SuperCoolAPI:
+    Type: AWS::Serverless::GraphQLApi
+    Properties:
+      Name: MyApi
+      SchemaUri: ./gql/schema.gql
+      Auth:
+        Type: API_KEY
+      ApiKeys:
+        MyApiKey:
+          Description: my api key
+      DataSources:
+        Lambda:
+          MyLambdaDataSource:
+            FunctionArn: !GetAtt MyLambdaFunction.Arn
+      Functions:
+        lambdaInvoker:
+          Runtime:
+            Name: APPSYNC_JS
+            Version: 1.0.0
+          DataSource: MyLambdaDataSource
+          CodeUri: ./gql/invoker.js
+      Resolvers:
+        Mutation:
+          addPost:
+            Runtime:
+              Name: APPSYNC_JS
+              Version: 1.0.0
+            Pipeline:
+            - lambdaInvoker
+        Query:
+          getPost:
+            Runtime:
+              Name: APPSYNC_JS
+              Version: 1.0.0
+            Pipeline:
+            - lambdaInvoker
+
+Outputs:
+  SuperCoolAPI:
+    Description: AppSync API
+    Value: !GetAtt SuperCoolAPI.GraphQLUrl
+  SuperCoolAPIMyApiKey:
+    Description: API Key for authentication
+    Value: !GetAtt SuperCoolAPIMyApiKey.ApiKey
